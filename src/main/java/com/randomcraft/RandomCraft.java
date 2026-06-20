@@ -1,0 +1,68 @@
+package com.randomcraft;
+
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.event.server.FMLServerStartedEvent;
+import net.minecraftforge.fml.event.server.FMLServerStoppingEvent;
+import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.text.StringTextComponent;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+@Mod(RandomCraft.MODID)
+public class RandomCraft {
+    public static final String MODID = "randomcraft";
+    public static final Logger LOGGER = LogManager.getLogger();
+
+    private static MinecraftServer server;
+    private static long nextShuffleTick = Long.MAX_VALUE;
+    private static long lastSeed = 0L;
+
+    public RandomCraft() {
+        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.SPEC, "randomcraft-common.toml");
+        MinecraftForge.EVENT_BUS.register(this);
+    }
+
+    @SubscribeEvent public void onServerStarted(FMLServerStartedEvent e) {
+        server = e.getServer(); resetTimer();
+        if (Config.SHUFFLE_ON_SERVER_START.get()) runShuffle();
+    }
+    @SubscribeEvent public void onServerStopping(FMLServerStoppingEvent e) { server = null; nextShuffleTick = Long.MAX_VALUE; }
+    @SubscribeEvent public void onServerTick(TickEvent.ServerTickEvent e) {
+        if (e.phase != TickEvent.Phase.END || server == null) return;
+        if (server.getTickCount() >= nextShuffleTick) { runShuffle(); resetTimer(); }
+    }
+    @SubscribeEvent public void onRegisterCommands(RegisterCommandsEvent e) { RandomCraftCommand.register(e.getDispatcher()); }
+
+    private void runShuffle() {
+        if (server == null) return;
+        long seed = System.currentTimeMillis(); lastSeed = seed;
+        try {
+            int c = RecipeShuffler.shuffle(server, seed);
+            LOGGER.info("[RandomCraft] Shuffled {} recipes (seed={}).", c, seed);
+            if (Config.BROADCAST_MESSAGE.get()) {
+                broadcast(server, "§6[RandomCraft] §eCrafting recipes have been shuffled!");
+            }
+        } catch (Throwable t) { LOGGER.error("Shuffle failed", t); }
+    }
+
+    public static void broadcast(MinecraftServer srv, String msg) {
+        StringTextComponent c = new StringTextComponent(msg);
+        for (net.minecraft.entity.player.ServerPlayerEntity p : srv.getPlayerList().getPlayers()) {
+            p.sendMessage(c, net.minecraft.util.Util.NIL_UUID);
+        }
+    }
+
+    public static void resetTimer() {
+        if (server == null) return;
+        long t = Math.max(20L, Config.SHUFFLE_INTERVAL_SECONDS.get() * 20L);
+        nextShuffleTick = server.getTickCount() + t;
+    }
+    public static long ticksUntilNextShuffle() { return server == null ? 0 : Math.max(0, nextShuffleTick - server.getTickCount()); }
+    public static long getLastSeed() { return lastSeed; }
+}
