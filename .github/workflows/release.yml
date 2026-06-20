@@ -1,0 +1,72 @@
+name: Release
+
+# Per-version branch. Files live at the repo root on each branch.
+# Branch name = <mc>-<loader> (lowercase), e.g. 26.2-fabric, 1.20.1-forge, 1.21.1-neoforge.
+# Pushing the branch builds it and publishes a Release tagged <branch>-v<mod_version>.
+on:
+  push:
+    branches:
+      - "*-fabric"
+      - "*-forge"
+      - "*-neoforge"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve JDK + version from branch
+        id: p
+        run: |
+          NAME="${GITHUB_REF_NAME}"
+          mc="${NAME%-*}"              # everything before the last '-' (loader)
+          case "$mc" in
+            1.16.5|1.18.2|1.20.1)               java=17 ;;
+            1.21.1)                             java=21 ;;
+            26.1.1|26.1.2|26.2|26.2-snapshot-7) java=25 ;;
+            *) echo "::error::Unknown Minecraft version '$mc' in branch '$NAME'"; exit 1 ;;
+          esac
+          modver=$(grep -E '^mod_version=' gradle.properties | head -1 | cut -d= -f2 | tr -d ' \r')
+          echo "java=$java"     >> "$GITHUB_OUTPUT"
+          echo "modver=$modver" >> "$GITHUB_OUTPUT"
+          echo "Resolved -> java=$java, mod_version=$modver"
+
+      - name: Set up JDK ${{ steps.p.outputs.java }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ steps.p.outputs.java }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build
+        run: |
+          chmod +x ./gradlew
+          ./gradlew build --no-daemon --stacktrace
+
+      - name: Collect jar
+        run: |
+          mkdir -p dist
+          jar=$(find build/libs -maxdepth 1 -name '*.jar' \
+            ! -name '*-sources.jar' ! -name '*-dev.jar' | head -n1)
+          if [ -z "$jar" ]; then echo "::error::No jar produced"; exit 1; fi
+          cp "$jar" dist/
+          echo "Built: $(basename "$jar")"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}-v${{ steps.p.outputs.modver }}
+          target_commitish: ${{ github.ref_name }}
+          name: ${{ github.ref_name }} ${{ steps.p.outputs.modver }}
+          files: dist/*.jar
+          generate_release_notes: true
+          fail_on_unmatched_files: true
