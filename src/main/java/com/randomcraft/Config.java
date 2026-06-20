@@ -18,6 +18,7 @@ public class Config {
     public boolean shuffleOnServerStart = true;
     public boolean broadcastMessage = true;
     public boolean includeModdedRecipes = true;
+    public boolean showTimerBossBar = false;
     public List<String> recipeBlacklist = new ArrayList<>();
     public List<String> itemBlacklist = new ArrayList<>(List.of("minecraft:crafting_table", "minecraft:chest"));
 
