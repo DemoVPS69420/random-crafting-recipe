@@ -33,6 +33,18 @@ public class RandomCraftCommand {
                         "§6[RandomCraft] §eNext shuffle in §a" + sec + "s §e(" + (sec / 60) + "m " + (sec % 60) + "s)"), false);
                     return 1;
                 }))
+                .then(Commands.literal("timer")
+                    .then(Commands.literal("on").executes(ctx -> setTimer(ctx.getSource(), true)))
+                    .then(Commands.literal("off").executes(ctx -> setTimer(ctx.getSource(), false))))
         );
+    }
+
+    private static int setTimer(CommandSourceStack src, boolean enabled) {
+        Config.get().showTimerBossBar = enabled;
+        Config.get().save();
+        TimerBossBar.setEnabled(src.getServer(), enabled);
+        src.sendSuccess(() -> Component.literal(
+            "§6[RandomCraft] §eTimer boss bar " + (enabled ? "§aenabled" : "§cdisabled") + "§e."), true);
+        return 1;
     }
 }
