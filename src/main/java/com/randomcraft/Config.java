@@ -10,6 +10,7 @@ public class Config {
     public static final ModConfigSpec.BooleanValue SHUFFLE_ON_SERVER_START;
     public static final ModConfigSpec.BooleanValue BROADCAST_MESSAGE;
     public static final ModConfigSpec.BooleanValue INCLUDE_MODDED_RECIPES;
+    public static final ModConfigSpec.BooleanValue SHOW_TIMER_BOSS_BAR;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> RECIPE_BLACKLIST;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> ITEM_BLACKLIST;
 
@@ -21,6 +22,8 @@ public class Config {
         SHUFFLE_ON_SERVER_START = b.define("shuffleOnServerStart", true);
         BROADCAST_MESSAGE = b.define("broadcastMessage", true);
         INCLUDE_MODDED_RECIPES = b.define("includeModdedRecipes", true);
+        SHOW_TIMER_BOSS_BAR = b.comment("Show a boss bar counting down to the next shuffle. Default off.")
+                .define("showTimerBossBar", false);
         RECIPE_BLACKLIST = b.defineList("recipeBlacklist", Arrays.asList(), () -> "", o -> o instanceof String);
         ITEM_BLACKLIST = b.defineList("itemBlacklist",
                 Arrays.asList("minecraft:crafting_table", "minecraft:chest"),
