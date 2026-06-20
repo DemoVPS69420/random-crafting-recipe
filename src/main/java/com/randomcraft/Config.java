@@ -11,6 +11,7 @@ public class Config {
     public static final ForgeConfigSpec.BooleanValue SHUFFLE_ON_SERVER_START;
     public static final ForgeConfigSpec.BooleanValue BROADCAST_MESSAGE;
     public static final ForgeConfigSpec.BooleanValue INCLUDE_MODDED_RECIPES;
+    public static final ForgeConfigSpec.BooleanValue SHOW_TIMER_BOSS_BAR;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> RECIPE_BLACKLIST;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> ITEM_BLACKLIST;
 
@@ -35,6 +36,10 @@ public class Config {
                 .comment("If true, crafting recipes from other mods are also shuffled.",
                          "Only recipes of type minecraft:crafting (crafting table) are affected.")
                 .define("includeModdedRecipes", true);
+
+        SHOW_TIMER_BOSS_BAR = b
+                .comment("If true, show a boss bar counting down to the next shuffle. Default: false.")
+                .define("showTimerBossBar", false);
 
         RECIPE_BLACKLIST = b
                 .comment("Recipe IDs (ResourceLocation) to never shuffle. Example: \"minecraft:stick\".")

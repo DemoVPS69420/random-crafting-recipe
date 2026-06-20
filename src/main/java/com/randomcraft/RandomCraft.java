@@ -40,6 +40,7 @@ public class RandomCraft {
 
     @SubscribeEvent
     public void onServerStopping(ServerStoppingEvent event) {
+        TimerBossBar.setEnabled(server, false);
         server = null;
         nextShuffleTick = Long.MAX_VALUE;
     }
@@ -52,6 +53,7 @@ public class RandomCraft {
             long intervalTicks = Math.max(20L, Config.SHUFFLE_INTERVAL_SECONDS.get() * 20L);
             nextShuffleTick = server.getTickCount() + intervalTicks;
         }
+        if (server.getTickCount() % 20 == 0) TimerBossBar.tick(server);
     }
 
     private void runShuffle() {
