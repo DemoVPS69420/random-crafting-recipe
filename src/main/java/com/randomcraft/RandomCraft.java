@@ -32,10 +32,11 @@ public class RandomCraft {
         server = e.getServer(); resetTimer();
         if (Config.SHUFFLE_ON_SERVER_START.get()) runShuffle();
     }
-    @SubscribeEvent public void onServerStopping(ServerStoppingEvent e) { server = null; nextShuffleTick = Long.MAX_VALUE; }
+    @SubscribeEvent public void onServerStopping(ServerStoppingEvent e) { TimerBossBar.setEnabled(server, false); server = null; nextShuffleTick = Long.MAX_VALUE; }
     @SubscribeEvent public void onServerTick(TickEvent.ServerTickEvent e) {
         if (e.phase != TickEvent.Phase.END || server == null) return;
         if (server.getTickCount() >= nextShuffleTick) { runShuffle(); resetTimer(); }
+        if (server.getTickCount() % 20 == 0) TimerBossBar.tick(server);
     }
     @SubscribeEvent public void onRegisterCommands(RegisterCommandsEvent e) { RandomCraftCommand.register(e.getDispatcher()); }
 
