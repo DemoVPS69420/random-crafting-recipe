@@ -28,6 +28,7 @@ public class RandomCraftFabric implements ModInitializer {
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(s -> {
+            TimerBossBar.setEnabled(s, false);
             server = null;
             nextShuffleTick = Long.MAX_VALUE;
         });
@@ -38,6 +39,7 @@ public class RandomCraftFabric implements ModInitializer {
                 runShuffle();
                 resetTimer();
             }
+            if (s.getTickCount() % 20 == 0) TimerBossBar.tick(s);
         });
 
         CommandRegistrationCallback.EVENT.register((dispatcher, reg, env) ->
