@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "randomcraft",
+  "version": "${version}",
+  "name": "RandomCraft",
+  "description": "Randomizes crafting table recipes every 10 minutes, including modded recipes.",
+  "authors": ["HachizuOrigami"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.randomcraft.RandomCraftFabric"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "fabric-api": "*",
+    "minecraft": ">=26.3- <27",
+    "java": ">=25"
+  }
+}

@@ -1,0 +1,30 @@
+# Gradle / build outputs
+build/
+.gradle/
+out/
+bin/
+
+# Unpacked Gradle distribution accidentally dropped under the wrapper dir
+gradle/wrapper/gradle*/
+# Keep the Gradle wrapper jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+
+# Minecraft run dirs
+run/
+runs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
