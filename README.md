@@ -19,6 +19,7 @@ A Minecraft mod that **randomizes crafting table recipes** every 10 minutes, inc
 | 26.1.2 | Fabric | [`26.1.2-fabric`](../../tree/26.1.2-fabric) |
 | 26.2-snapshot-7 | Fabric | [`26.2-snapshot-7-fabric`](../../tree/26.2-snapshot-7-fabric) |
 | 26.2 | Fabric | [`26.2-fabric`](../../tree/26.2-fabric) |
+| 26.3-snapshot-1 | Fabric | [`26.3-snapshot-1-fabric`](../../tree/26.3-snapshot-1-fabric) |
 
 ## Building from source
 
