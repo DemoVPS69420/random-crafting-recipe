@@ -28,3 +28,10 @@ runs/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Release Studio packaging and local credentials
+__pycache__/
+.venv/
+dist/
+*.spec
+.env

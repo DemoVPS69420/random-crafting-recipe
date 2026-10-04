@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version "${loom_version}"
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
     id 'java'
 }
 
@@ -20,12 +20,14 @@ repositories {
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    // In 26.1.x the Mojang client.jar ships already deobfuscated to Mojang names.
-    // Use a no-op intermediary mapping (empty tiny v2) and plain `implementation` so loom
-    // does not attempt to remap fabric-api sources — pattern from Bawnorton/Neruina unobf build.
-    mappings "net.fabricmc:intermediary:0.0.0:v2"
+    // Minecraft 26.3 ships unobfuscated; no mappings or remapping are needed.
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    testImplementation "net.fabricmc:fabric-loader-junit:${project.loader_version}"
+}
+
+test {
+    useJUnitPlatform()
 }
 
 processResources {

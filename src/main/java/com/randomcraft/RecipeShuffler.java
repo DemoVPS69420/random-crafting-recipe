@@ -19,8 +19,14 @@ public class RecipeShuffler {
 
     public static int shuffle(MinecraftServer server, long seed) {
         RecipeManager mgr = server.getRecipeManager();
+        int changed = shuffleRecipes(mgr.getRecipes(), Config.get(), seed);
+        if (changed > 0) RecipeSync.sync(server);
+        return changed;
+    }
 
-        Config cfg = Config.get();
+    // Keep the actual 26.3 recipe objects in this path so compatibility can be tested
+    // with Fabric Loader without starting a world or a dedicated server.
+    static int shuffleRecipes(Collection<RecipeHolder<?>> recipes, Config cfg, long seed) {
         Set<Identifier> recipeBlacklist = new HashSet<>();
         for (String s : cfg.recipeBlacklist) {
             Identifier id = Identifier.tryParse(s);
@@ -36,7 +42,7 @@ public class RecipeShuffler {
         List<Recipe<?>> candidates = new ArrayList<>();
         List<Item> originalItems = new ArrayList<>();
 
-        for (RecipeHolder<?> holder : mgr.getRecipes()) {
+        for (RecipeHolder<?> holder : recipes) {
             Recipe<?> recipe = holder.value();
             if (!(recipe instanceof CraftingRecipe)) continue;
 

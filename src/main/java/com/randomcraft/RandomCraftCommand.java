@@ -13,7 +13,11 @@ public class RandomCraftCommand {
             Commands.literal("randomcraft")
                 .requires(src -> src.permissions().hasPermission(
                     new Permission.HasCommandLevel(PermissionLevel.byId(2))))
-                .then(Commands.literal("shuffle").executes(ctx -> {
+                .then(Commands.literal("sync").executes(ctx -> {
+                RecipeSync.sync(ctx.getSource().getServer());
+                return 1;
+            }))
+            .then(Commands.literal("shuffle").executes(ctx -> {
                     CommandSourceStack src = ctx.getSource();
                     try {
                         long seed = System.currentTimeMillis();
