@@ -30,7 +30,7 @@ jobs:
           case "$mc" in
             1.16.5|1.18.2|1.20.1)               java=17 ;;
             1.21.1)                             java=21 ;;
-            26.1.1|26.1.2|26.2|26.2-snapshot-7|26.3-snapshot-1) java=25 ;;
+            26.1.1|26.1.2|26.2|26.2-snapshot-7|26.3-snapshot-1|26.3) java=25 ;;
             *) echo "::error::Unknown Minecraft version '$mc' in branch '$NAME'"; exit 1 ;;
           esac
           modver=$(grep -E '^mod_version=' gradle.properties | head -1 | cut -d= -f2 | tr -d ' \r')
