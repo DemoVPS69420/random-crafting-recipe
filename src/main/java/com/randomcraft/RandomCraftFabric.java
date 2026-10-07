@@ -19,6 +19,7 @@ public class RandomCraftFabric implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        RecipeSync.initialize();
         Config.get();
 
         ServerLifecycleEvents.SERVER_STARTED.register(s -> {

@@ -64,6 +64,7 @@ public class RecipeShuffler {
             if (originalItems.get(i) == shuffled.get(i)) continue;
             if (writeResultItem(candidates.get(i), shuffled.get(i))) changed++;
         }
+        if (changed > 0) RecipeSync.sync(server);
         return changed;
     }
 
