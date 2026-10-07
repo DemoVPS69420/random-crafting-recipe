@@ -1,0 +1,48 @@
+buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net/' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.1.+', changing: true
+    }
+}
+apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'eclipse'
+apply plugin: 'java'
+
+version = '1.2.0'
+group = 'com.randomcraft'
+archivesBaseName = 'randomcraft'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(8)
+
+minecraft {
+    mappings channel: 'stable', version: '39-1.12'
+    runs {
+        client { workingDirectory project.file('run'); mods { randomcraft { source sourceSets.main } } }
+        server { workingDirectory project.file('run'); mods { randomcraft { source sourceSets.main } } }
+    }
+}
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.12.2-14.23.5.2860'
+    compileOnly fg.deobf('mezz.jei:jei_1.12.2:4.22.0.1034:api')
+}
+
+repositories { maven { url = 'https://maven.blamejared.com' } }
+
+jar.finalizedBy('reobfJar')
+
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+
+jar {
+    manifest {
+        attributes(['Specification-Title': 'randomcraft',
+                    'Specification-Vendor': 'HachizuOrigami',
+                    'Specification-Version': '1',
+                    'Implementation-Title': project.name,
+                    'Implementation-Version': project.version,
+                    'Implementation-Vendor': 'HachizuOrigami'])
+    }
+}
