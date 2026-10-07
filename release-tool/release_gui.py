@@ -8,8 +8,8 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 import webbrowser
 
-from release_core import GitHub, build, find_java, git, properties, repository_name, required_java
-from git_sync import inspect as inspect_git, sync as sync_git
+from release_core import GitHub, build, find_java, git, properties, repository_name, required_java, project_loader, suggested_repository, discover_projects
+from git_sync import inspect as inspect_git, sync as sync_git, connect as connect_git, prepare_many, sync_many
 
 
 def default_project():
@@ -83,6 +83,7 @@ class Studio(tk.Tk):
         self.button(actions, "Đọc lại project", self.load_project).pack(side="left", padx=8)
         self.button(actions, "Mở thư mục JAR", self.open_artifacts).pack(side="left")
         self.button(actions, "Commit & Push", self.start_sync).pack(side="left", padx=8)
+        self.button(actions, "Nhiều phiên bản…", self.start_many).pack(side="left")
         ttk.Label(source, textvariable=self.artifact, style="Muted.TLabel", wraplength=900).grid(row=4, column=0, columnspan=3, sticky="w", pady=(8, 0))
 
         release = ttk.LabelFrame(outer, text="02  ·  GitHub Release", padding=14)
@@ -153,16 +154,13 @@ class Studio(tk.Tk):
             name = props.get("archives_base_name", "randomcraft")
             if "randomcraft" not in name:
                 raise ValueError("Chọn project RandomCraft.")
-            loader = "neoforge" if "neoforge" in name.lower() else "forge" if "forge" in name.lower() else "fabric"
+            loader = project_loader(project)
             self.details.set(f"Minecraft {mc}   ·   {loader.title()}   ·   Mod {version}   ·   JDK {required_java(project)}")
             self.jdk.set(find_java(project))
             self.tag.set(f"{mc}-{loader}-v{version}")
             self.release_name.set(f"RandomCraft {version} · Minecraft {mc} ({loader.title()})")
             self.prerelease.set(any(part in mc for part in ("snapshot", "pre", "rc")))
-            try:
-                self.repo.set(repository_name(git(project, "remote", "get-url", "origin")))
-            except Exception:
-                self.repo.set("")
+            self.repo.set(suggested_repository(project))
             self.notes.delete("1.0", "end")
             self.notes.insert("1.0", f"RandomCraft {version} for Minecraft {mc} ({loader.title()}).\nRandomizes crafting recipes, including modded recipes.")
             self.invalidate()
@@ -211,7 +209,13 @@ class Studio(tk.Tk):
                     self.append_log(f"Hoàn tất: {value}\n")
                     self.status.set("Tạo release thành công")
                 elif kind == "sync":
-                    self.status.set(f"Đã push · {value} · Xem tiến trình build/release trong GitHub Actions")
+                    self.status.set(f"Đã push · {value} · Xem GitHub Actions nếu nhánh có workflow release")
+                elif kind == "connected":
+                    self.status.set("Đã kết nối Git · Bấm Commit & Push để xem trước thay đổi")
+                elif kind == "prepared_many":
+                    self.after(0, lambda previews=value: self.review_many(previews))
+                elif kind == "synced_many":
+                    self.status.set(f"Đã push {len(value)} nhánh · Xem GitHub Actions nếu nhánh có workflow release")
                 elif kind == "connection":
                     self.status.set(f"Đã kết nối · {value['full_name']} · Có quyền ghi")
                 elif kind == "error":
@@ -237,8 +241,12 @@ class Studio(tk.Tk):
         self.task("Đang kiểm tra GitHub…", lambda: GitHub(token).check(repo), "connection")
 
     def start_sync(self):
+        project = Path(self.project.get()).resolve()
+        if not (project / '.git').exists():
+            self.start_connect(project)
+            return
         try:
-            preview = inspect_git(Path(self.project.get()))
+            preview = inspect_git(project)
         except Exception as error:
             messagebox.showerror("Chưa thể đồng bộ Git", str(error), parent=self)
             return
@@ -270,6 +278,107 @@ class Studio(tk.Tk):
                 lambda line: self.events.put(("log", line))), "sync")
         ttk.Button(dialog, text="Commit & Push", command=confirm).pack(side="right", padx=16, pady=12)
         ttk.Button(dialog, text="Hủy", command=dialog.destroy).pack(side="right", pady=12)
+
+    def start_connect(self, project):
+        try:
+            props = properties(project)
+            branch = f"{props['minecraft_version']}-{project_loader(project)}"
+            repo = repository_name(self.repo.get())
+        except Exception as error:
+            messagebox.showerror("Kết nối project với GitHub", f"Điền Repository (owner/repo) rồi bấm Commit & Push.\n{error}", parent=self)
+            return
+        remote = f'https://github.com/{repo}.git'
+        if not messagebox.askokcancel("Kết nối Git lần đầu",
+            f"Project: {project}\nRepository: {repo}\nNhánh: {branch}\n\n"
+            "Tạo Git tại thư mục này và tải lịch sử nếu nhánh đã tồn tại. Source hiện có được giữ nguyên. "
+            "Chưa commit/push ở bước này; sau khi kết nối, bấm Commit & Push để xem trước các file.", parent=self):
+            return
+        self.invalidate()
+        self.task("Đang kết nối Git…", lambda: connect_git(project, remote, branch,
+            lambda line: self.events.put(("log", line))), "connected")
+
+    def start_many(self):
+        workspace = Path(self.project.get()).resolve().parent
+        dialog = tk.Toplevel(self)
+        dialog.title("Chọn phiên bản để commit/push")
+        dialog.geometry("850x590")
+        dialog.transient(self)
+        dialog.grab_set()
+        selected_root = tk.StringVar(value=str(workspace))
+        repo = tk.StringVar(value=self.repo.get())
+        ttk.Label(dialog, textvariable=selected_root, wraplength=810).pack(anchor="w", padx=16, pady=8)
+        ttk.Label(dialog, text="Repository chung (owner/repo)").pack(anchor="w", padx=16)
+        ttk.Entry(dialog, textvariable=repo).pack(fill="x", padx=16, pady=(0, 8))
+        tree = ttk.Treeview(dialog, columns=('project', 'branch', 'git'), show='headings', selectmode='extended')
+        for column, title, width in [('project', 'Project', 230), ('branch', 'Nhánh đích', 250), ('git', 'Git', 200)]:
+            tree.heading(column, text=title)
+            tree.column(column, width=width)
+        tree.pack(fill="both", expand=True, padx=16)
+        projects = []
+        def reload_projects():
+            try:
+                projects[:] = discover_projects(Path(selected_root.get()))
+                tree.delete(*tree.get_children())
+                for index, (project, branch) in enumerate(projects):
+                    tree.insert('', 'end', iid=str(index), values=(project.name, branch,
+                        'Đã có Git' if (project / '.git').exists() else 'Sẽ kết nối lần đầu'))
+            except Exception as error:
+                messagebox.showerror("Không đọc được workspace", str(error), parent=dialog)
+        def browse():
+            folder = filedialog.askdirectory(parent=dialog, title="Thư mục chứa các phiên bản")
+            if folder:
+                selected_root.set(folder)
+                reload_projects()
+        controls = ttk.Frame(dialog)
+        controls.pack(fill="x", padx=16, pady=8)
+        ttk.Button(controls, text="Chọn workspace…", command=browse).pack(side="left")
+        ttk.Button(controls, text="Chọn tất cả", command=lambda: tree.selection_set(tree.get_children())).pack(side="left", padx=8)
+        ttk.Button(controls, text="Bỏ chọn", command=lambda: tree.selection_remove(tree.selection())).pack(side="left")
+        ttk.Label(dialog, text="Giữ Ctrl/Shift để chọn nhiều dòng. Chuẩn bị sẽ kết nối Git và tải lịch sử; chưa commit/push.\nSau đó bạn sẽ xem toàn bộ file thay đổi trước khi xác nhận.", wraplength=810).pack(anchor="w", padx=16)
+        def prepare():
+            try:
+                chosen = [projects[int(key)] for key in tree.selection()]
+                if not chosen:
+                    raise ValueError('Chọn ít nhất một phiên bản.')
+                remote = f'https://github.com/{repository_name(repo.get())}.git'
+            except Exception as error:
+                messagebox.showerror("Chưa sẵn sàng", str(error), parent=dialog)
+                return
+            dialog.destroy()
+            self.invalidate()
+            self.task("Đang chuẩn bị các nhánh…", lambda: prepare_many(chosen, remote,
+                lambda line: self.events.put(("log", line))), "prepared_many")
+        ttk.Button(dialog, text="Chuẩn bị & xem trước", command=prepare).pack(side="right", padx=16, pady=12)
+        ttk.Button(dialog, text="Hủy", command=dialog.destroy).pack(side="right", pady=12)
+        reload_projects()
+
+    def review_many(self, previews):
+        dialog = tk.Toplevel(self)
+        dialog.title(f"Commit & Push {len(previews)} phiên bản")
+        dialog.geometry("850x620")
+        dialog.transient(self)
+        dialog.grab_set()
+        text = scrolledtext.ScrolledText(dialog, wrap='none')
+        text.pack(fill='both', expand=True, padx=16, pady=12)
+        for preview in previews:
+            text.insert('end', f'{preview.project.name} → {preview.branch}\nOrigin: {preview.remote}\n')
+            text.insert('end', '\n'.join(preview.changes) or '(không đổi file; đồng bộ commit hiện có)')
+            text.insert('end', '\n\n')
+        text.configure(state='disabled')
+        message = tk.StringVar(value='Update RandomCraft JEI compatibility')
+        ttk.Label(dialog, text='Nội dung commit (dùng cho từng nhánh có file thay đổi)').pack(anchor='w', padx=16)
+        ttk.Entry(dialog, textvariable=message).pack(fill='x', padx=16)
+        ttk.Label(dialog, text='Mỗi phiên bản được commit/push vào nhánh riêng. Push có thể kích hoạt release.\nNếu một nhánh lỗi, dừng và báo rõ các nhánh đã push; không hoàn tác các nhánh đã thành công.', wraplength=810).pack(anchor='w', padx=16, pady=10)
+        def confirm():
+            note = message.get().strip()
+            if not note:
+                messagebox.showerror('Thiếu nội dung', 'Nhập nội dung commit.', parent=dialog)
+                return
+            dialog.destroy()
+            self.task('Đang commit/push các phiên bản…', lambda: sync_many(previews, note,
+                lambda line: self.events.put(('log', line))), 'synced_many')
+        ttk.Button(dialog, text=f'Commit & Push {len(previews)} nhánh', command=confirm).pack(side='right', padx=16, pady=12)
+        ttk.Button(dialog, text='Hủy', command=dialog.destroy).pack(side='right', pady=12)
 
     def start_release(self):
         if not self.result:

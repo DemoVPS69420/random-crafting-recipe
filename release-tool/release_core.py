@@ -22,7 +22,50 @@ def properties(project: Path) -> dict[str, str]:
         if "=" in line and not line.lstrip().startswith(("#", "!")):
             key, value = line.split("=", 1)
             result[key.strip()] = value.strip()
+    legacy = project / 'src/main/resources/mcmod.info'
+    if legacy.is_file():
+        metadata = json.loads(legacy.read_text(encoding='utf-8-sig'))
+        mod = next((m for m in metadata if m.get('modid') == 'randomcraft'), None)
+        if mod:
+            result.setdefault('minecraft_version', mod['mcversion'])
+            result.setdefault('mod_version', mod['version'])
     return result
+
+
+def project_loader(project: Path) -> str:
+    resources = project / 'src/main/resources'
+    for file, loader in [('fabric.mod.json', 'fabric'),
+                         ('META-INF/neoforge.mods.toml', 'neoforge'),
+                         ('META-INF/mods.toml', 'forge'), ('mcmod.info', 'forge')]:
+        if (resources / file).is_file():
+            return loader
+    raise ValueError('Không nhận diện được loader của project RandomCraft.')
+
+
+def suggested_repository(project: Path) -> str:
+    for candidate in (project, project.parent / 'RepoBranches', project.parent / '26.3-Fabric'):
+        if (candidate / '.git').exists():
+            try:
+                return repository_name(git(candidate, 'remote', 'get-url', 'origin'))
+            except (RuntimeError, ValueError):
+                pass
+    return ''
+
+
+def discover_projects(workspace: Path):
+    projects = []
+    for project in sorted(workspace.iterdir()):
+        if not (project / 'src/main/java/com/randomcraft').is_dir():
+            continue
+        if not (project / 'build.gradle').is_file() or not (project / 'gradle.properties').is_file():
+            continue
+        props = properties(project)
+        branch = f"{props['minecraft_version']}-{project_loader(project)}"
+        # Only canonical version folders belong in the batch matrix.
+        if project.name.lower() != branch.lower():
+            continue
+        projects.append((project.resolve(), branch))
+    return projects
 
 
 def source_digest(project: Path) -> str:
@@ -67,8 +110,7 @@ def required_java(project: Path) -> int:
         return 25
     if mc.startswith("1.21"):
         return 21
-    if mc == "1.12.2":
-        return 8
+    # Legacy Forge uses JDK 17 to run Gradle and a separate JDK 8 compiler.
     return 17
 
 
@@ -127,7 +169,17 @@ def build(project: Path, java_home: Path, log) -> BuildResult:
             env["JAVA_TOOL_OPTIONS"] = (env.get("JAVA_TOOL_OPTIONS", "") +
                 f' -Djdk.net.unixdomain.tmpdir="{socket_dir}"').strip()
     command = [str(java), "-classpath", str(wrapper), "org.gradle.wrapper.GradleWrapperMain",
-               "clean", "build", "--no-daemon", "--console=plain"]
+               "clean", "build", "--no-daemon", "--console=plain", f'-Dorg.gradle.java.home={java_home}']
+    if props.get('minecraft_version') == '1.12.2':
+        candidates = [Path(os.environ['JAVA8_HOME'])] if os.environ.get('JAVA8_HOME') else []
+        for parent in (project, *list(project.parents)[:3]):
+            candidates.extend((parent / '.tools').glob('jdk8*'))
+            candidates.extend((parent / '.tools').glob('jdk-8*'))
+        compiler = next((p for p in candidates if (p / 'bin' / ('javac.exe' if os.name == 'nt' else 'javac')).is_file()), None)
+        if not compiler:
+            raise ValueError('Forge 1.12.2 cần compiler JDK 8. Đặt JAVA8_HOME hoặc thêm JDK 8 vào .tools; chọn JDK 17 để chạy Gradle.')
+        env['JAVA8_HOME'] = str(compiler)
+        command.append(f'-Porg.gradle.java.installations.paths={java_home},{compiler}')
     log(f"Build {project.name} · JDK {required_java(project)}\n")
     with subprocess.Popen(command, cwd=project, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                           text=True, encoding="utf-8", errors="replace", creationflags=NO_WINDOW) as process:
