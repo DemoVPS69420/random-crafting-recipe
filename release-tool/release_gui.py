@@ -9,6 +9,7 @@ from tkinter import filedialog, messagebox, scrolledtext, ttk
 import webbrowser
 
 from release_core import GitHub, build, find_java, git, properties, repository_name, required_java
+from git_sync import inspect as inspect_git, sync as sync_git
 
 
 def default_project():
@@ -81,6 +82,7 @@ class Studio(tk.Tk):
         self.button(actions, "Build JAR", self.start_build, "Accent.TButton").pack(side="left")
         self.button(actions, "Đọc lại project", self.load_project).pack(side="left", padx=8)
         self.button(actions, "Mở thư mục JAR", self.open_artifacts).pack(side="left")
+        self.button(actions, "Commit & Push", self.start_sync).pack(side="left", padx=8)
         ttk.Label(source, textvariable=self.artifact, style="Muted.TLabel", wraplength=900).grid(row=4, column=0, columnspan=3, sticky="w", pady=(8, 0))
 
         release = ttk.LabelFrame(outer, text="02  ·  GitHub Release", padding=14)
@@ -208,6 +210,8 @@ class Studio(tk.Tk):
                     self.release_url = value
                     self.append_log(f"Hoàn tất: {value}\n")
                     self.status.set("Tạo release thành công")
+                elif kind == "sync":
+                    self.status.set(f"Đã push · {value} · Xem tiến trình build/release trong GitHub Actions")
                 elif kind == "connection":
                     self.status.set(f"Đã kết nối · {value['full_name']} · Có quyền ghi")
                 elif kind == "error":
@@ -231,6 +235,41 @@ class Studio(tk.Tk):
     def check_connection(self):
         token, repo = self.token.get(), self.repo.get()
         self.task("Đang kiểm tra GitHub…", lambda: GitHub(token).check(repo), "connection")
+
+    def start_sync(self):
+        try:
+            preview = inspect_git(Path(self.project.get()))
+        except Exception as error:
+            messagebox.showerror("Chưa thể đồng bộ Git", str(error), parent=self)
+            return
+        dialog = tk.Toplevel(self)
+        dialog.title("Xem trước Commit & Push")
+        dialog.geometry("780x530")
+        dialog.transient(self)
+        dialog.grab_set()
+        ttk.Label(dialog, text=f"Nhánh: {preview.branch}\nOrigin: {preview.remote}", wraplength=740).pack(anchor="w", padx=16, pady=12)
+        changes = scrolledtext.ScrolledText(dialog, height=13, wrap="none")
+        changes.pack(fill="both", expand=True, padx=16)
+        changes.insert("1.0", "\n".join(preview.changes) or "Không có file thay đổi. Sẽ gộp và push các commit hiện có.")
+        changes.configure(state="disabled")
+        message = tk.StringVar(value="Update RandomCraft and release tools")
+        ttk.Label(dialog, text="Nội dung commit").pack(anchor="w", padx=16, pady=(10, 2))
+        entry = ttk.Entry(dialog, textvariable=message)
+        entry.pack(fill="x", padx=16)
+        if not preview.paths:
+            entry.configure(state="disabled")
+        ttk.Label(dialog, text="Tải thay đổi từ origin → commit các file trên → gộp → push.\nPush có thể kích hoạt workflow tự phát hành của repository. Git dùng tài khoản đã đăng nhập trên máy.", wraplength=740).pack(anchor="w", padx=16, pady=10)
+        def confirm():
+            text = message.get().strip()
+            if preview.paths and not text:
+                messagebox.showerror("Thiếu nội dung", "Nhập nội dung commit.", parent=dialog)
+                return
+            dialog.destroy()
+            self.invalidate()
+            self.task("Đang đồng bộ Git…", lambda: sync_git(preview, text,
+                lambda line: self.events.put(("log", line))), "sync")
+        ttk.Button(dialog, text="Commit & Push", command=confirm).pack(side="right", padx=16, pady=12)
+        ttk.Button(dialog, text="Hủy", command=dialog.destroy).pack(side="right", pady=12)
 
     def start_release(self):
         if not self.result:
