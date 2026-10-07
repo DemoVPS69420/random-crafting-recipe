@@ -1,6 +1,5 @@
 package com.randomcraft;
 
-import net.minecraft.network.protocol.game.ClientboundUpdateRecipesPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.ItemStack;
@@ -43,10 +42,7 @@ public class RecipeShuffler {
             if (ItemStack.matches(results.get(i), shuffled.get(i))) continue;
             if (trySetResult(candidates.get(i), clampCount(shuffled.get(i).copy()))) changed++;
         }
-        if (changed > 0) {
-            List<Recipe<?>> all = new ArrayList<>(mgr.getRecipes());
-            server.getPlayerList().broadcastAll(new ClientboundUpdateRecipesPacket(all));
-        }
+        if (changed > 0) RecipeSync.sync(server);
         return changed;
     }
 
