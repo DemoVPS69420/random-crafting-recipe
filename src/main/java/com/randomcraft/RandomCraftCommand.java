@@ -10,7 +10,11 @@ public class RandomCraftCommand {
         dispatcher.register(
             Commands.literal("randomcraft")
                 .requires(src -> src.hasPermission(2))
-                .then(Commands.literal("shuffle").executes(ctx -> {
+                .then(Commands.literal("sync").executes(ctx -> {
+                RecipeSync.sync(ctx.getSource().getServer());
+                return 1;
+            }))
+            .then(Commands.literal("shuffle").executes(ctx -> {
                     CommandSourceStack src = ctx.getSource();
                     try {
                         long seed = System.currentTimeMillis();
