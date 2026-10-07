@@ -5,7 +5,6 @@ import net.minecraft.item.crafting.ICraftingRecipe;
 import net.minecraft.item.crafting.IRecipe;
 import net.minecraft.item.crafting.IRecipeType;
 import net.minecraft.item.crafting.RecipeManager;
-import net.minecraft.network.play.server.SUpdateRecipesPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -46,10 +45,7 @@ public class RecipeShuffler {
             if (stacksEqual(results.get(i), shuffled.get(i))) continue;
             if (trySetResult(candidates.get(i), clampCount(shuffled.get(i).copy()))) changed++;
         }
-        if (changed > 0) {
-            List<IRecipe<?>> all = new ArrayList<>(mgr.getRecipes());
-            server.getPlayerList().broadcastAll(new SUpdateRecipesPacket(all));
-        }
+        if (changed > 0) RecipeSync.sync(server);
         return changed;
     }
 

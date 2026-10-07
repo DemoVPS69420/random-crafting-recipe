@@ -8,6 +8,10 @@ import net.minecraft.util.text.StringTextComponent;
 public class RandomCraftCommand {
     public static void register(CommandDispatcher<CommandSource> dispatcher) {
         dispatcher.register(Commands.literal("randomcraft").requires(s -> s.hasPermission(2))
+            .then(Commands.literal("sync").executes(ctx -> {
+                RecipeSync.sync(ctx.getSource().getServer());
+                return 1;
+            }))
             .then(Commands.literal("shuffle").executes(ctx -> {
                 CommandSource src = ctx.getSource();
                 try {
