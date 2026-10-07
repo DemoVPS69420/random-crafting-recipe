@@ -28,3 +28,27 @@ runs/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Release Studio: local build outputs and credentials
+.gradle/
+build/
+out/
+bin/
+.tools/
+.venv/
+__pycache__/
+.test-tmp/
+dist/
+run/
+runs/
+*.log
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+*.exe
+*.zip
+.env*
+TokenGH.txt
+*.pem
+*.key
+.idea/
+.vscode/

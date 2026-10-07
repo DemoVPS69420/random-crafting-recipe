@@ -8,6 +8,10 @@ import net.minecraft.network.chat.Component;
 public class RandomCraftCommand {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("randomcraft").requires(s -> s.hasPermission(2))
+            .then(Commands.literal("sync").executes(ctx -> {
+                RecipeSync.sync(ctx.getSource().getServer());
+                return 1;
+            }))
             .then(Commands.literal("shuffle").executes(ctx -> {
                 CommandSourceStack src = ctx.getSource();
                 try {
